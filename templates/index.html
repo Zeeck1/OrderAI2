@@ -1,0 +1,463 @@
+{% extends 'base.html' %}
+{% block title %}Order Availability Checker{% endblock %}
+{% block head_extra %}
+  <style>
+    /* Dark theme fixes for index page */
+    [data-bs-theme="dark"] .text-dark {
+      color: var(--text-primary) !important;
+    }
+    
+    [data-bs-theme="dark"] .text-muted {
+      color: var(--text-secondary) !important;
+    }
+    
+    [data-bs-theme="dark"] .lead {
+      color: var(--text-secondary) !important;
+    }
+    
+    [data-bs-theme="dark"] .feature-badge {
+      color: var(--text-primary);
+    }
+    
+    [data-bs-theme="dark"] .table {
+      background-color: var(--card-bg);
+      color: var(--text-primary);
+    }
+    
+    [data-bs-theme="dark"] .table th,
+    [data-bs-theme="dark"] .table td {
+      background-color: var(--card-bg);
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+    
+    [data-bs-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > td {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    [data-bs-theme="dark"] .form-control,
+    [data-bs-theme="dark"] .form-select {
+      background-color: var(--bg-secondary);
+      border-color: var(--border-color);
+      color: var(--text-primary);
+    }
+    
+    [data-bs-theme="dark"] .form-control:focus,
+    [data-bs-theme="dark"] .form-select:focus {
+      background-color: var(--bg-secondary);
+      border-color: #2563eb;
+      color: var(--text-primary);
+      box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
+    }
+    
+    [data-bs-theme="dark"] .btn-outline-primary {
+      color: #3b82f6;
+      border-color: #3b82f6;
+    }
+    
+    [data-bs-theme="dark"] .btn-outline-primary:hover {
+      background-color: #3b82f6;
+      border-color: #3b82f6;
+      color: white;
+    }
+    
+    [data-bs-theme="dark"] .btn-outline-secondary {
+      color: var(--text-secondary);
+      border-color: var(--border-color);
+    }
+    
+    [data-bs-theme="dark"] .btn-outline-secondary:hover {
+      color: var(--text-primary);
+      background-color: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+    
+    [data-bs-theme="dark"] .alert {
+      background-color: var(--bg-secondary);
+      border-color: var(--border-color);
+      color: var(--text-primary);
+    }
+    
+    [data-bs-theme="dark"] .small {
+      color: var(--text-secondary) !important;
+    }
+    
+    [data-bs-theme="dark"] .upload-area {
+      background-color: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+    
+    [data-bs-theme="dark"] .upload-area:hover {
+      background-color: rgba(59, 130, 246, 0.05);
+      border-color: #3b82f6;
+    }
+    
+    [data-bs-theme="dark"] .dropdown-menu {
+      background-color: var(--card-bg);
+      border-color: var(--border-color);
+    }
+    
+    [data-bs-theme="dark"] .dropdown-item {
+      color: var(--text-primary);
+    }
+    
+    [data-bs-theme="dark"] .dropdown-item:hover {
+      background-color: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+  </style>
+{% endblock %}
+{% block content %}
+    <div class="container py-5">
+      <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-7">
+          <!-- Hero Section -->
+          <div class="text-center mb-5">
+            <h1 class="display-6 fw-bold text-gradient mb-3">Order Availability Checker</h1>
+            <p class="lead text-muted mb-4">
+              Upload your Stock and Order Excel files. Our intelligent system will analyze which orders can be processed based on available stock.
+            </p>
+            <div class="d-flex justify-content-center gap-3 mb-4">
+              <div class="feature-badge">
+                <i class="bi bi-lightning-fill text-primary"></i>
+                <span class="ms-2">Fast Processing</span>
+              </div>
+              <div class="feature-badge">
+                <i class="bi bi-shield-check text-success"></i>
+                <span class="ms-2">Accurate Results</span>
+              </div>
+              <div class="feature-badge">
+                <i class="bi bi-graph-up text-info"></i>
+                <span class="ms-2">Smart Analysis</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main Card -->
+          <div class="card shadow-lg border-0">
+            <div class="card-body p-4 p-md-5">
+              <!-- Mode Toggle -->
+              <div class="text-center mb-4">
+                <div class="btn-group" role="group" aria-label="Processing mode selection">
+                  <input type="radio" class="btn-check" name="mode" id="single-mode" checked>
+                  <label class="btn btn-outline-primary" for="single-mode">
+                    <i class="bi bi-file-earmark me-2"></i>Single Mode
+                  </label>
+                  
+                  <a class="btn btn-outline-primary" href="{{ url_for('batch_index') }}">
+                    <i class="bi bi-files me-2"></i>Batch Mode
+                  </a>
+                </div>
+                <p class="small text-muted mt-2 mb-0">Single mode processes one order file at a time</p>
+              </div>
+
+              {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+              <div class="mb-3">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category=='error' else category }}" role="alert">{{ message }}</div>
+                {% endfor %}
+              </div>
+              {% endif %}
+              {% endwith %}
+
+              <!-- Upload Form -->
+              <form class="needs-validation upload-form" method="post" action="{{ url_for('process') }}" enctype="multipart/form-data" novalidate>
+                <div class="row g-4">
+                  <div class="col-md-6">
+                    <div class="upload-section">
+                      <label class="form-label d-flex align-items-center">
+                        <i class="bi bi-database me-2 text-primary"></i>
+                        <span class="fw-semibold">Stock Excel File</span>
+                        <span class="text-danger ms-1">*</span>
+                      </label>
+                      <div class="file-upload-wrapper">
+                        <input class="form-control file-input" type="file" name="stock_file" 
+                               accept=".xlsx,.xls,.csv" required id="stock-file" 
+                               aria-describedby="stock-file-help" />
+                        <div class="file-upload-overlay">
+                          <i class="bi bi-cloud-upload display-6 text-muted mb-2"></i>
+                          <p class="text-muted mb-0">Drop file here or click to browse</p>
+                        </div>
+                      </div>
+                      <div id="stock-file-help" class="form-text">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Should include: Fish Name, Packed Size, Total Carton columns
+                      </div>
+                      <div class="invalid-feedback">
+                        Please select a valid stock file.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <div class="upload-section">
+                      <label class="form-label d-flex align-items-center">
+                        <i class="bi bi-cart me-2 text-success"></i>
+                        <span class="fw-semibold">Order Excel File</span>
+                        <span class="text-danger ms-1">*</span>
+                      </label>
+                      <div class="file-upload-wrapper">
+                        <input class="form-control file-input" type="file" name="order_file" 
+                               accept=".xlsx,.xls,.csv" required id="order-file"
+                               aria-describedby="order-file-help" />
+                        <div class="file-upload-overlay">
+                          <i class="bi bi-cloud-upload display-6 text-muted mb-2"></i>
+                          <p class="text-muted mb-0">Drop file here or click to browse</p>
+                        </div>
+                      </div>
+                      <div id="order-file-help" class="form-text">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Should include: Fish Name, Packed Size, Total Carton columns
+                      </div>
+                      <div class="invalid-feedback">
+                        Please select a valid order file.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="text-center mt-4">
+                  <button class="btn btn-primary btn-lg px-5" type="submit">
+                    <i class="bi bi-play-circle me-2"></i>
+                    <span class="btn-text">Process Files</span>
+                    <span class="btn-loading d-none">
+                      <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                      Processing...
+                    </span>
+                  </button>
+                  <p class="small text-muted mt-2 mb-0">Processing typically takes 5-10 seconds</p>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        {% if recent_sessions %}
+        <!-- Recent Processing History -->
+        <div class="col-lg-8 col-xl-7 mt-5">
+          <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-0 pb-0">
+              <div class="d-flex align-items-center justify-content-between">
+                <h5 class="fw-bold text-dark mb-0">
+                  <i class="bi bi-clock-history me-2 text-primary"></i>Recent Processing History
+                </h5>
+                <span class="badge bg-light text-dark">{{ recent_sessions|length }} recent</span>
+              </div>
+            </div>
+            <div class="card-body pt-3">
+              <div class="row g-3">
+                {% for session in recent_sessions %}
+                <div class="col-12">
+                  <div class="border rounded-3 p-3 hover-shadow transition-all history-item" data-href="{{ url_for('view_session', session_id=session.id) }}">
+                      <div class="d-flex align-items-start justify-content-between">
+                        <div class="flex-grow-1">
+                          <div class="d-flex align-items-center gap-2 mb-2">
+                            {% if session.processing_type == 'batch' %}
+                              <span class="badge bg-info text-white">
+                                <i class="bi bi-files me-1"></i>Batch
+                              </span>
+                            {% else %}
+                              <span class="badge bg-success text-white">
+                                <i class="bi bi-file-earmark me-1"></i>Single
+                              </span>
+                            {% endif %}
+                          <small class="text-muted">{{ session.created_at }}</small>
+                          <div class="ms-auto d-flex align-items-center gap-2">
+                            <form method="post" action="{{ url_for('delete_session') }}" onsubmit="return handleDeleteSubmit(event);">
+                              <input type="hidden" name="session_id" value="{{ session.id }}" />
+                              <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></button>
+                            </form>
+                            <a href="{{ url_for('view_session', session_id=session.id) }}" class="btn btn-sm btn-outline-primary" title="Open" onclick="event.stopPropagation();"><i class="bi bi-arrow-right"></i></a>
+                          </div>
+                          </div>
+                          
+                          <div class="mb-2">
+                            <div class="fw-medium text-dark mb-1">
+                              <i class="bi bi-database text-primary me-1"></i>
+                              Stock: {{ session.stock_filename or 'Unknown' }}
+                            </div>
+                            <div class="text-muted small">
+                              <i class="bi bi-cart text-success me-1"></i>
+                              Orders: {{ session.order_filenames or 'Unknown' }} 
+                              <span class="badge bg-light text-dark ms-1">{{ session.order_files }} files</span>
+                            </div>
+                          </div>
+                          
+                          <div class="d-flex gap-3 small">
+                            <span class="text-success">
+                              <i class="bi bi-check-circle me-1"></i>{{ session.full_items }} Available
+                            </span>
+                            <span class="text-warning">
+                              <i class="bi bi-exclamation-triangle me-1"></i>{{ session.not_full_items }} Not Full
+                            </span>
+                            <span class="text-secondary">
+                              <i class="bi bi-x-circle me-1"></i>{{ session.not_have_items }} Not have
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div class="text-end">
+                          <div class="fw-bold text-primary mb-1">{{ session.total_items }}</div>
+                          <div class="small text-muted">Total Items</div>
+                        </div>
+                      </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              
+              <div class="text-center mt-3">
+                <button class="btn btn-outline-primary btn-sm" onclick="showAllHistory()">
+                  <i class="bi bi-eye me-1"></i>View All History
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+      // Enhanced form validation and UX
+      (() => {
+        const forms = document.querySelectorAll('.needs-validation');
+        const fileInputs = document.querySelectorAll('.file-input');
+        
+        // Form validation
+        Array.from(forms).forEach((form) => {
+          form.addEventListener('submit', (event) => {
+            if (!form.checkValidity()) {
+              event.preventDefault();
+              event.stopPropagation();
+            } else {
+              // Show loading state
+              const btn = form.querySelector('button[type="submit"]');
+              const btnText = btn.querySelector('.btn-text');
+              const btnLoading = btn.querySelector('.btn-loading');
+              
+              btn.disabled = true;
+              btnText.classList.add('d-none');
+              btnLoading.classList.remove('d-none');
+              
+              // Add loading class to form
+              form.classList.add('loading');
+            }
+            form.classList.add('was-validated');
+          }, false);
+        });
+        
+        // Enhanced file input UX
+        fileInputs.forEach(input => {
+          const wrapper = input.closest('.file-upload-wrapper');
+          const overlay = wrapper.querySelector('.file-upload-overlay');
+          
+          // File selection feedback
+          input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              overlay.innerHTML = `
+                <i class="bi bi-file-earmark-check display-6 text-success mb-2"></i>
+                <p class="text-success mb-0 fw-medium">${file.name}</p>
+                <p class="text-muted small mb-2">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-file"><i class="bi bi-x-circle me-1"></i>Remove</button>
+              `;
+              wrapper.classList.add('file-selected');
+            } else {
+              overlay.innerHTML = `
+                <i class="bi bi-cloud-upload display-6 text-muted mb-2"></i>
+                <p class="text-muted mb-0">Drop file here or click to browse</p>
+              `;
+              wrapper.classList.remove('file-selected');
+            }
+          });
+
+          // Remove/Clear selected file
+          wrapper.addEventListener('click', (e) => {
+            const target = e.target;
+            if (!target || !(target instanceof Element)) return;
+            if (target.classList.contains('remove-file') || (typeof target.closest === 'function' && target.closest('.remove-file'))) {
+              input.value = '';
+              overlay.innerHTML = `
+                <i class=\"bi bi-cloud-upload display-6 text-muted mb-2\"></i>
+                <p class=\"text-muted mb-0\">Drop file here or click to browse</p>`;
+              wrapper.classList.remove('file-selected');
+            }
+          });
+          
+          // Drag and drop functionality
+          ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            wrapper.addEventListener(eventName, preventDefaults, false);
+          });
+          
+          function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          
+          ['dragenter', 'dragover'].forEach(eventName => {
+            wrapper.addEventListener(eventName, () => wrapper.classList.add('drag-over'), false);
+          });
+          
+          ['dragleave', 'drop'].forEach(eventName => {
+            wrapper.addEventListener(eventName, () => wrapper.classList.remove('drag-over'), false);
+          });
+          
+          wrapper.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+              input.files = files;
+              input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          });
+        });
+        
+        // Add smooth animations
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('animate-in');
+            }
+          });
+        });
+        
+        document.querySelectorAll('.card, .feature-badge').forEach(el => {
+          observer.observe(el);
+        });
+      })();
+      
+      // History functions
+      function showAllHistory() {
+        // TODO: Implement full history page or modal
+        alert('Full history feature coming soon!');
+      }
+
+      // Handle delete form submission
+      function handleDeleteSubmit(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        
+        if (confirm('Delete this history?')) {
+          // Submit the form
+          event.target.submit();
+          return true;
+        }
+        return false;
+      }
+
+      // Make entire history card clickable
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.history-item[data-href]').forEach(card => {
+          card.addEventListener('click', () => {
+            const url = card.getAttribute('data-href');
+            if (url) window.location.href = url;
+          });
+        });
+      });
+    </script>
+{% endblock %}
+
+

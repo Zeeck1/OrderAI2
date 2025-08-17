@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}Fish Buy - Order Availability Checker{% endblock %}
+{% block head_extra %}
+  <style>
+    /* Dark theme fixes for fish buy page */
+    [data-bs-theme="dark"] .text-dark {
+      color: var(--text-primary) !important;
+    }
+    
+    [data-bs-theme="dark"] .text-muted {
+      color: var(--text-secondary) !important;
+    }
+    
+    [data-bs-theme="dark"] .table {
+      background-color: var(--card-bg);
+      color: var(--text-primary);
+    }
+    
+    [data-bs-theme="dark"] .table th,
+    [data-bs-theme="dark"] .table td {
+      background-color: var(--card-bg);
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+    
+    [data-bs-theme="dark"] .table-light {
+      background-color: var(--bg-secondary) !important;
+      color: var(--text-primary);
+    }
+    
+    [data-bs-theme="dark"] .nav-link {
+      color: var(--text-secondary);
+    }
+    
+    [data-bs-theme="dark"] .nav-link:hover {
+      color: var(--text-primary);
+    }
+    
+    [data-bs-theme="dark"] .nav-link.active {
+      color: #2563eb;
+    }
+    
+    [data-bs-theme="dark"] .btn-outline-primary {
+      color: #3b82f6;
+      border-color: #3b82f6;
+    }
+    
+    [data-bs-theme="dark"] .btn-outline-primary:hover {
+      background-color: #3b82f6;
+      border-color: #3b82f6;
+      color: white;
+    }
+    
+    [data-bs-theme="dark"] .btn-outline-secondary {
+      color: var(--text-secondary);
+      border-color: var(--border-color);
+    }
+    
+    [data-bs-theme="dark"] .btn-outline-secondary:hover {
+      color: var(--text-primary);
+      background-color: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+    
+    [data-bs-theme="dark"] .list-unstyled {
+      color: var(--text-primary);
+    }
+    
+    [data-bs-theme="dark"] .small {
+      color: var(--text-secondary) !important;
+    }
+    
+    [data-bs-theme="dark"] .form-control,
+    [data-bs-theme="dark"] .form-select {
+      background-color: var(--bg-secondary);
+      border-color: var(--border-color);
+      color: var(--text-primary);
+    }
+    
+    [data-bs-theme="dark"] .form-control:focus,
+    [data-bs-theme="dark"] .form-select:focus {
+      background-color: var(--bg-secondary);
+      border-color: #2563eb;
+      color: var(--text-primary);
+      box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
+    }
+  </style>
+{% endblock %}
+{% block content %}
+    <div class="container py-5">
+      <div class="d-flex align-items-center justify-content-between mb-4">
+        <h1 class="h4 m-0">Fish (Not have)</h1>
+        <div class="text-muted small">Stock: <strong>{{ stock_name }}</strong></div>
+      </div>
+
+      <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+          <a class="nav-link" href="{{ url_for('view_batch', batch_token=batch_token) }}">Summary</a>
+        </li>
+        <li class="nav-item" role="presentation">
+          <a class="nav-link" href="{{ url_for('view_batch', batch_token=batch_token) }}#tab-calendar" onclick="localStorage.setItem('openTab','calendar')">Calendar</a>
+        </li>
+        <li class="nav-item" role="presentation">
+          <a class="nav-link" href="{{ url_for('view_batch', batch_token=batch_token) }}#tab-charts" onclick="localStorage.setItem('openTab','charts')">Charts</a>
+        </li>
+        <li class="nav-item" role="presentation">
+          <a class="nav-link active" aria-current="page" href="#">Fish</a>
+        </li>
+      </ul>
+
+      <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-compact align-middle m-0 table-fixed">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 22%">Fish Name</th>
+                  <th style="width: 18%">Packed Size</th>
+                  <th style="width: 12%" class="text-end">Total Needed KG</th>
+                  <th style="width: 48%">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <span>Orders</span>
+                      <a class="btn btn-sm btn-outline-primary" href="{{ url_for('download_fish_excel', batch=batch_token) }}">Download Excel</a>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for g in fish_groups %}
+                <tr>
+                  <td class="break-anywhere">{{ g.fish_name }}</td>
+                  <td class="break-anywhere">{{ g.packed_size }}</td>
+                  <td class="text-end">{{ g.total_needed_kg }}</td>
+                  <td class="orders-cell">
+                    <ul class="mb-2 list-unstyled">
+                      {% for o in g.orders %}
+                      <li class="order-item">
+                        <span class="order-name break-anywhere">{{ o.order_name }}</span>
+                        <span class="order-kg">— {{ o.needed_kg }} KG</span>
+                        <form class="d-inline" method="post" action="{{ url_for('set_decision') }}">
+                          <input type="hidden" name="batch_token" value="{{ batch_token }}" />
+                          <input type="hidden" name="fish_name" value="{{ g.fish_name }}" />
+                          <input type="hidden" name="packed_size" value="{{ g.packed_size }}" />
+                          <input type="hidden" name="order_name" value="{{ o.order_name }}" />
+                          <input type="hidden" name="redirect_to" value="fish_buy" />
+                          <select class="form-select form-select-sm d-inline-block" style="width: 130px; min-width: 120px" name="decision" onchange="this.form.submit()">
+                            <option value="" {{ '' == (o.decision or '') and 'selected' or '' }}>- Decide -</option>
+                            <option value="Replace" {{ 'Replace' == (o.decision or '') and 'selected' or '' }}>Replace</option>
+                            <option value="Reject" {{ 'Reject' == (o.decision or '') and 'selected' or '' }}>Reject</option>
+                            <option value="Buy" {{ 'Buy' == (o.decision or '') and 'selected' or '' }}>Buy</option>
+                          </select>
+                        </form>
+                      </li>
+                      {% endfor %}
+                    </ul>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{% endblock %}
+
+

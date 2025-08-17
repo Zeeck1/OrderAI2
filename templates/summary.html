@@ -1,0 +1,1612 @@
+{% extends 'base.html' %}
+{% block title %}Batch Summary - Order Availability Checker{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" />
+  <style>
+    /* Responsive Tab Navigation */
+    .nav-tabs {
+      border-bottom: 1px solid var(--border-color);
+      overflow-x: auto;
+      overflow-y: hidden;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    
+    .nav-tabs::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .nav-tabs .nav-link {
+      color: var(--text-secondary);
+      border: none;
+      border-bottom: 2px solid transparent;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+      padding: 1rem 1.5rem;
+      font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link:hover {
+      color: var(--text-primary);
+      border-bottom-color: #2563eb;
+      background-color: transparent;
+    }
+    
+    .nav-tabs .nav-link.active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+      background-color: transparent;
+      position: relative;
+    }
+    
+    .nav-tabs .nav-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #2563eb 0%, #2563eb 100%);
+      border-radius: 2px 2px 0 0;
+    }
+    
+    @media (max-width: 768px) {
+      .nav-tabs .nav-link {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+      }
+      
+      .nav-tabs .nav-link i {
+        font-size: 1rem;
+      }
+    }
+    
+    /* Editor Tab Styles */
+    .order-file-item {
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-primary);
+      transition: all 0.3s ease;
+    }
+    
+    .order-file-item.active {
+      border-color: #28a745;
+      border-width: 2px;
+    }
+    
+    .comparison-table {
+      font-size: 0.875rem;
+      background: var(--card-bg);
+      color: var(--text-primary);
+    }
+    
+    .table-success {
+      background-color: rgba(40, 167, 69, 0.1) !important;
+    }
+    
+    .table-warning {
+      background-color: rgba(255, 193, 7, 0.1) !important;
+    }
+    
+    .table-danger {
+      background-color: rgba(220, 53, 69, 0.1) !important;
+    }
+    
+    #comparison-results .btn-group .btn.active {
+      background-color: #28a745;
+      border-color: #28a745;
+      color: white;
+    }
+    
+    /* Single column layout for mobile */
+    @media (max-width: 991.98px) {
+      .editor-layout .col-lg-4,
+      .editor-layout .col-lg-8 {
+        margin-bottom: 1rem;
+      }
+      
+      .order-files-section {
+        max-height: 300px;
+        overflow-y: auto;
+      }
+    }
+    
+    /* Upload section styling */
+    .upload-section {
+      border: 1px dashed var(--border-color);
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+    
+    .upload-section:hover {
+      border-color: #28a745;
+      background-color: rgba(40, 167, 69, 0.05);
+    }
+    
+    .filename-mismatch {
+      border-color: #dc3545 !important;
+      background-color: rgba(220, 53, 69, 0.1) !important;
+    }
+    
+    .drag-ghost {
+      background: #28a745;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    
+    /* Dark theme specific fixes */
+    [data-bs-theme="dark"] .order-file-item:hover {
+      background: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+    
+    [data-bs-theme="dark"] .comparison-table th,
+    [data-bs-theme="dark"] .comparison-table td {
+      background: var(--card-bg);
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+    
+    [data-bs-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > td {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    [data-bs-theme="dark"] .form-control,
+    [data-bs-theme="dark"] .form-select {
+      background-color: var(--bg-secondary);
+      border-color: var(--border-color);
+      color: var(--text-primary);
+    }
+    
+    [data-bs-theme="dark"] .form-control:focus,
+    [data-bs-theme="dark"] .form-select:focus {
+      background-color: var(--bg-secondary);
+      border-color: #2563eb;
+      color: var(--text-primary);
+      box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
+    }
+    
+    [data-bs-theme="dark"] .alert {
+      background-color: var(--bg-secondary);
+      border-color: var(--border-color);
+      color: var(--text-primary);
+    }
+    
+    [data-bs-theme="dark"] .btn-outline-secondary {
+      color: var(--text-secondary);
+      border-color: var(--border-color);
+    }
+    
+    [data-bs-theme="dark"] .btn-outline-secondary:hover {
+      color: var(--text-primary);
+      background-color: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+  </style>
+{% endblock %}
+{% block content %}
+    <div class="container py-5">
+      <div class="d-flex align-items-center justify-content-between mb-4">
+        <h1 class="h4 m-0">Batch Summary</h1>
+        <div class="text-muted small">Stock: <strong>{{ stock_name }}</strong></div>
+      </div>
+
+      <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-summary" type="button" role="tab">Summary</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-calendar" type="button" role="tab">Calendar</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-charts" type="button" role="tab">Charts</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-fish" type="button" role="tab">Fish</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-editor" type="button" role="tab">
+            <i class="bi bi-pencil-square me-1"></i>Editor
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-history" type="button" role="tab">
+            <i class="bi bi-clock-history me-1"></i>History
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <div id="tab-summary" class="tab-pane fade show active" role="tabpanel">
+          <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover align-middle m-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Order File</th>
+                  <th class="text-end">Items</th>
+                  <th class="text-end">Full</th>
+                  <th class="text-end">Not Full</th>
+                  <th class="text-end">Not have</th>
+                  <th class="text-end">Total KG</th>
+                  <th style="min-width: 260px">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in items %}
+                <tr>
+                  <td>{{ item.order_name }}</td>
+                  <td class="text-end">{{ item.summary.total_items }}</td>
+                  <td class="text-end">{{ item.summary.full }}</td>
+                  <td class="text-end">{{ item.summary.not_full }}</td>
+                  <td class="text-end">{{ item.summary.not_have }}</td>
+                  <td class="text-end">{{ item.summary.total_kg_all }}</td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-primary" href="{{ url_for('view_result', token=item.token) }}">Open Result</a>
+                    <form class="d-inline" method="post" action="{{ url_for('schedule_order') }}">
+                      <input type="hidden" name="token" value="{{ item.token }}" />
+                      <input type="hidden" name="batch_token" value="{{ batch_token }}" />
+                      <input class="form-control form-control-sm d-inline-block" style="width: 160px" type="date" name="date" value="{{ item.scheduled_on or '' }}" data-token="{{ item.token }}" />
+                      <button class="btn btn-sm btn-outline-secondary" type="submit">Set Date</button>
+                    </form>
+                    <form class="d-inline" method="post" action="{{ url_for('remove_order') }}" onsubmit="return confirm('Remove this order from the batch?');">
+                      <input type="hidden" name="token" value="{{ item.token }}" />
+                      <input type="hidden" name="batch_token" value="{{ batch_token }}" />
+                      <button class="btn btn-sm btn-outline-danger" type="submit">Remove</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-calendar" class="tab-pane fade" role="tabpanel">
+          <div class="row g-4">
+            <div class="col-lg-8">
+              <div class="card shadow-sm border-0 rounded-4 mb-4">
+                <div class="card-body">
+                  <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-outline-primary" id="downloadCalBtn">Download Calendar PNG</button>
+                  </div>
+                  <div id='calendar'></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div class="card shadow-sm border-0 rounded-4 mb-4">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h6 m-0">Recommendations</h2>
+                    <span class="text-muted small">by Full items</span>
+                  </div>
+                  <div class="small text-muted mb-2">Drag an order onto a day to schedule</div>
+                  <ol id="recList" class="mb-0 list-unstyled">
+                    {% for r in recommendations %}
+                      <li class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center p-2 border rounded rec-item fc-event {{ 'disabled' if r.scheduled else '' }}" data-token="{{ r.token }}" data-title="{{ r.order_name }}" draggable="{{ 'false' if r.scheduled else 'true' }}">
+                          <span class="rec-title">{{ loop.index }}. {{ r.order_name }}</span>
+                          <div class="badge-group">
+                            <span class="badge bg-success">Full: {{ r.full }}</span>
+                            <span class="badge bg-info text-dark">Ready KG: {{ r.full_kg }}</span>
+                            {% if r.scheduled %}<span class="badge bg-secondary">Scheduled</span>{% endif %}
+                          </div>
+                        </div>
+                      </li>
+                    {% endfor %}
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-charts" class="tab-pane fade" role="tabpanel">
+          <div class="card shadow-sm border-0 rounded-4 mb-4">
+            <div class="card-body">
+              <div class="row g-4">
+                <div class="col-md-8">
+                  <canvas id="barChart"></canvas>
+                </div>
+                <div class="col-md-4">
+                  <canvas id="doughnutChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div id="tab-fish" class="tab-pane fade" role="tabpanel">
+          <div class="card shadow-sm border-0 rounded-4 mb-4">
+            <div class="card-body p-0">
+              <div class="d-flex justify-content-between align-items-center p-3 pt-3 pb-0">
+                <div class="text-muted small">Total Needed KG: <strong>{{ fish_total_kg }}</strong></div>
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('fish_buy', batch_token=batch_token) }}">Open Fish-buy Page</a>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle m-0 table-fixed">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width: 22%">Fish Name</th>
+                      <th style="width: 18%">Packed Size</th>
+                      <th style="width: 12%" class="text-end">Total Needed KG</th>
+                      <th style="width: 48%">
+                        <div class="d-flex justify-content-between align-items-center">
+                          <span>Orders</span>
+                          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('download_fish_excel', batch=batch_token) }}">Download Excel</a>
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for g in fish_groups %}
+                    <tr>
+                      <td class="break-anywhere">{{ g.fish_name }}</td>
+                      <td class="break-anywhere">{{ g.packed_size }}</td>
+                      <td class="text-end">{{ g.total_needed_kg }}</td>
+                      <td class="orders-cell">
+                        <ul class="mb-2 list-unstyled">
+                          {% for o in g.orders %}
+                          <li class="order-item">
+                            <span class="order-name break-anywhere">{{ o.order_name }}</span>
+                            <span class="order-kg">— {{ o.needed_kg }} KG</span>
+                          </li>
+                          {% endfor %}
+                        </ul>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-editor" class="tab-pane fade" role="tabpanel">
+          <div class="editor-layout">
+            <!-- Order Files Selection Section -->
+            <div class="row mb-4">
+              <div class="col-12">
+                <div class="border">
+                  <div class="p-3 border-bottom bg-light">
+                    <h6 class="mb-3">Select Order File to Edit</h6>
+                    <input type="text" class="form-control" id="order-search" 
+                           placeholder="Search order files..." autocomplete="off">
+                  </div>
+                  <div class="p-2" style="max-height: 400px; overflow-y: auto;">
+                    <div id="order-files-container">
+                      {% for item in items %}
+                      <div class="order-file-wrapper" data-filename="{{ item.order_name }}">
+                        <div class="order-file-item p-3 mb-2" style="border-radius: 10px;"
+                             data-token="{{ item.token }}" 
+                             data-filename="{{ item.order_name }}">
+                          <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                              <h6 class="mb-2 text-truncate" title="{{ item.order_name }}">{{ item.order_name }}</h6>
+                              <div class="small text-muted">
+                                {{ item.summary.total_items }} items • 
+                                {{ item.summary.full }} Full • 
+                                {{ item.summary.not_full }} Not full • 
+                                {{ item.summary.not_have }} Not have
+                              </div>
+                            </div>
+                            <div class="ms-2">
+                              <i class="bi bi-chevron-right text-muted"></i>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {% endfor %}
+                    </div>
+                    <div id="no-results" class="text-center py-4 text-muted" style="display: none;">
+                      <i class="bi bi-search mb-2"></i>
+                      <p class="mb-0">No order files found</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- File Upload and Comparison Section -->
+            <div class="row">
+              <div class="col-12">
+              <!-- File Upload Section (Hidden by default) -->
+              <div id="upload-section" class="card border rounded-3 mb-4" style="display: none;">
+                <div class="card-header bg-white border-bottom">
+                  <h6 class="card-title mb-1 text-dark">
+                    <i class="bi bi-cloud-upload me-2 text-success"></i>Upload Updated File
+                  </h6>
+                  <small class="text-muted">Selected: <span id="selected-filename"></span></small>
+                </div>
+                <div class="card-body">
+                  <div class="alert alert-info mb-4">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Important:</strong> The uploaded file name must match the selected order file name exactly.
+                  </div>
+                  
+                  <form id="comparison-upload-form" enctype="multipart/form-data">
+                    <input type="hidden" id="original-token" name="original_token" value="">
+                    <input type="hidden" id="original-filename" name="original_filename" value="">
+                    <input type="hidden" name="batch_token" value="{{ batch_token }}">
+                    
+                    <div class="mb-4">
+                      <label for="updated-file" class="form-label fw-medium">Choose updated order file</label>
+                      <div class="upload-section p-4 mb-3">
+                        <div class="text-center">
+                          <i class="bi bi-cloud-upload display-6 text-muted mb-3"></i>
+                          <div class="mb-3">
+                            <input type="file" class="form-control" id="updated-file" name="updated_file" 
+                                   accept=".xlsx,.xls,.csv" required>
+                          </div>
+                          <p class="text-muted small mb-0">
+                            Supported formats: Excel (.xlsx, .xls) and CSV (.csv)
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div id="filename-validation" class="alert alert-danger" style="display: none;">
+                        <i class="bi bi-x-circle me-2"></i>
+                        <span id="filename-error-message"></span>
+                      </div>
+                      
+                      <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg" id="compare-btn" disabled>
+                          <i class="bi bi-search me-2"></i>Compare Files
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+
+                  <div id="upload-progress" class="progress mb-3" style="display: none;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 0%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Comparison Results Section (Hidden by default) -->
+              <div id="comparison-results" class="card border rounded-3" style="display: none;">
+                <div class="card-header bg-white border-bottom">
+                  <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <h6 class="card-title mb-0 text-dark">
+                      <i class="bi bi-clipboard-data me-2 text-success"></i>File Comparison Results
+                    </h6>
+                    <div class="d-flex gap-2 flex-wrap">
+                      <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="show-all-changes">All</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="show-added">Added</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="show-modified">Modified</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="show-deleted">Deleted</button>
+                      </div>
+                      <button type="button" class="btn btn-sm btn-success" id="apply-changes-btn">
+                        <i class="bi bi-upload me-1"></i>Apply Changes
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="card-body p-0">
+                  <!-- Comparison Summary -->
+                  <div class="p-3 border-bottom bg-light">
+                    <div class="row text-center">
+                      <div class="col-3">
+                        <div class="h4 text-success mb-1" id="added-count">0</div>
+                        <small class="text-muted">Added</small>
+                      </div>
+                      <div class="col-3">
+                        <div class="h4 text-warning mb-1" id="modified-count">0</div>
+                        <small class="text-muted">Modified</small>
+                      </div>
+                      <div class="col-3">
+                        <div class="h4 text-danger mb-1" id="deleted-count">0</div>
+                        <small class="text-muted">Deleted</small>
+                      </div>
+                      <div class="col-3">
+                        <div class="h4 text-muted mb-1" id="unchanged-count">0</div>
+                        <small class="text-muted">Unchanged</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Comparison Table -->
+                  <div class="table-responsive" style="max-height: 600px;">
+                    <table class="table table-sm table-hover mb-0" id="comparison-table">
+                      <thead class="table-light sticky-top">
+                        <tr>
+                          <th style="width: 5%">Status</th>
+                          <th style="width: 25%">Fish Name</th>
+                          <th style="width: 20%">Packed Size</th>
+                          <th style="width: 15%">Old Quantity</th>
+                          <th style="width: 15%">New Quantity</th>
+                          <th style="width: 20%">Changes</th>
+                        </tr>
+                      </thead>
+                      <tbody id="comparison-tbody">
+                        <!-- Comparison results will be populated here -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Getting Started Message -->
+              <div id="getting-started" class="card border rounded-3">
+                <div class="card-body text-center py-5">
+                  <i class="bi bi-arrow-up-circle text-muted" style="font-size: 3rem;"></i>
+                  <h6 class="text-muted mt-3 mb-2">Select an Order File</h6>
+                  <p class="text-muted mb-0 small">
+                    Choose an order file from above to start editing and comparing changes.
+                  </p>
+                </div>
+              </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- History Tab Content -->
+        <div id="tab-history" class="tab-pane fade" role="tabpanel">
+          <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-header bg-white border-bottom">
+              <h5 class="card-title mb-0">
+                <i class="bi bi-clock-history text-success me-2"></i>File Comparison History
+              </h5>
+            </div>
+            <div class="card-body p-0">
+              <div id="history-loading" class="text-center p-4">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading comparison history...</p>
+              </div>
+              <div id="history-content" style="display: none;">
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle m-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th class="text-nowrap">Order File</th>
+                        <th class="text-nowrap">Date & Time</th>
+                        <th class="text-nowrap">Summary</th>
+                        <th class="text-nowrap">Changes Detail</th>
+                        <th class="text-nowrap">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="history-tbody">
+                    </tbody>
+                  </table>
+                </div>
+                <div id="no-history" class="text-center p-4" style="display: none;">
+                  <i class="bi bi-clock-history text-muted" style="font-size: 3rem;"></i>
+                  <h6 class="text-muted mt-3">No comparison history found</h6>
+                  <p class="text-muted small">File comparisons will appear here after you use the Editor tab.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+      </div>
+
+      <div class="mt-3">
+        <a class="btn btn-outline-secondary" href="{{ url_for('batch_index') }}">Back to Batch</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('index') }}">Single Mode</a>
+      </div>
+      </div>
+    
+          <!-- Comparison Details Modal -->
+      <div class="modal fade" id="comparisonModal" tabindex="-1" aria-labelledby="comparisonModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen-lg-down modal-xl">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="comparisonModalLabel">
+                <i class="bi bi-file-diff me-2"></i>File Comparison Details
+              </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row mb-3">
+                <div class="col-lg-6 col-12 mb-2 mb-lg-0">
+                  <strong>Order File:</strong> <span id="modal-filename" class="text-break"></span>
+                </div>
+                <div class="col-lg-6 col-12">
+                  <strong>Date & Time:</strong> <span id="modal-datetime" class="text-break"></span>
+                </div>
+              </div>
+              
+              <div class="row mb-3">
+                <div class="col-12">
+                  <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button class="btn btn-outline-secondary btn-sm active" data-filter="all">All</button>
+                    <button class="btn btn-outline-success btn-sm" data-filter="added">Added</button>
+                    <button class="btn btn-outline-warning btn-sm" data-filter="modified">Modified</button>
+                    <button class="btn btn-outline-danger btn-sm" data-filter="deleted">Deleted</button>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="text-nowrap">Status</th>
+                      <th class="text-nowrap">Fish Name</th>
+                      <th class="text-nowrap">Packed Size</th>
+                      <th class="text-nowrap">Old Quantity</th>
+                      <th class="text-nowrap">New Quantity</th>
+                      <th class="text-nowrap">Changes</th>
+                    </tr>
+                  </thead>
+                  <tbody id="modal-comparison-tbody">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Event Detail Modal -->
+      <div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="eventModalLabel">Order Detail</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-2"><strong>Order:</strong> <span class="event-title"></span></div>
+            <div class="mb-2"><strong>Date:</strong> <span class="event-date"></span></div>
+            <p class="text-muted small mb-0">You can remove this scheduled order to free the slot.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-danger" id="removeEventBtn">Remove</button>
+          </div>
+        </div>
+      </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script>
+    let chartsInited = false;
+    let calendarInited = false;
+
+    const labels = {{ chart_labels|safe }};
+    const dataFull = {{ chart_full|safe }};
+    const dataNF = {{ chart_not_full|safe }};
+    const dataNH = {{ chart_not_have|safe }};
+    const doughnut = {{ doughnut_data|safe }};
+    const events = {{ calendar_events|safe }};
+
+    function initCharts() {
+      if (chartsInited) return;
+      const barCtx = document.getElementById('barChart');
+      const doughCtx = document.getElementById('doughnutChart');
+      if (!barCtx || !doughCtx) return;
+      new Chart(barCtx, {
+        type: 'bar',
+        data: { labels, datasets: [
+          { label: 'Full', data: dataFull, backgroundColor: '#22c55e' },
+          { label: 'Not Full', data: dataNF, backgroundColor: '#f59e0b' },
+          { label: 'Not have', data: dataNH, backgroundColor: '#6b7280' },
+        ] },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+      new Chart(doughCtx, {
+        type: 'doughnut',
+        data: { labels: ['Full KG', 'Not Full KG', 'Not have KG'], datasets: [{ data: doughnut, backgroundColor: ['#22c55e', '#f59e0b', '#6b7280'] }] },
+        options: { plugins: { legend: { position: 'bottom' } } }
+      });
+      chartsInited = true;
+    }
+
+    function initCalendar() {
+      if (calendarInited) return;
+      const calendarEl = document.getElementById('calendar');
+      if (!calendarEl) return;
+      // make external items draggable using FullCalendar interaction plugin API
+      const Draggable = FullCalendar.Draggable;
+      if (Draggable) {
+        new Draggable(document.getElementById('recList'), {
+          itemSelector: '.rec-item',
+          eventData: function(eventEl) {
+            return {
+              title: eventEl.getAttribute('data-title'),
+              extendedProps: { token: eventEl.getAttribute('data-token') }
+            };
+          }
+        });
+      }
+
+      const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        height: 600,
+        events,
+        droppable: true,
+        editable: true,
+        dragScroll: true,
+        snapDuration: '00:05:00',
+        dropAccept: '.rec-item',
+        eventContent(arg) {
+          // Friendly filename: take the last whitespace-separated token, then strip leading digits+
+          // underscore. Example: 'order-TH2 135_JBC010_25.xlsx' -> 'JBC010_25.xlsx'
+          const title = (arg.event.title || '').trim();
+          const lastToken = (title.split(/\s+/).pop() || title).trim();
+          const friendly = lastToken.replace(/^\d+_/, '');
+          const el = document.createElement('div');
+          el.className = 'fc-event-title';
+          el.textContent = friendly || title;
+          return { domNodes: [el] };
+        },
+         eventReceive(info) {
+          const token = info.event.extendedProps?.token || info.draggedEl?.getAttribute('data-token');
+          const dateStr = info.event.startStr;
+          if (!token) return;
+          fetch('{{ url_for('schedule_order') }}', {
+            method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ token, date: dateStr, batch_token: '{{ batch_token }}' })
+          }).then(() => {
+            // disable the dragged recommendation item so it can't be scheduled twice
+            const el = document.querySelector(`.rec-item[data-token="${token}"]`);
+            if (el) {
+              el.classList.add('disabled');
+              el.setAttribute('draggable', 'false');
+            }
+             // reflect on Summary tab input
+             const input = document.querySelector(`input[type="date"][data-token="${token}"]`);
+             if (input) input.value = dateStr;
+          });
+        },
+        eventDragStart(info) {
+          // Hide the original element during drag to avoid double display
+          info.el.style.opacity = '0.3';
+        },
+        eventDragStop(info) {
+          // Restore original element visibility
+          info.el.style.opacity = '1';
+        },
+         eventDrop(info) {
+          const token = info.event.extendedProps?.token;
+          const dateStr = info.event.startStr;
+          if (!token) return;
+          fetch('{{ url_for('schedule_order') }}', {
+            method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ token, date: dateStr, batch_token: '{{ batch_token }}' })
+          }).then(() => {
+            const input = document.querySelector(`input[type="date"][data-token="${token}"]`);
+            if (input) input.value = dateStr;
+          }).catch(() => {
+            info.revert();
+          });
+        },
+        eventClick(info) {
+          info.jsEvent.preventDefault();
+          const token = info.event.extendedProps?.token;
+          // Build modal content
+          const title = info.event.title;
+          const dateStr = info.event.startStr;
+          const modal = document.getElementById('eventModal');
+          modal.querySelector('.modal-title').textContent = title;
+          modal.querySelector('.event-date').textContent = new Date(dateStr).toDateString();
+          const removeBtn = modal.querySelector('#removeEventBtn');
+          removeBtn.onclick = async () => {
+            await fetch('{{ url_for('unschedule_order') }}', {
+              method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({ token: token, batch_token: '{{ batch_token }}' })
+            });
+            info.event.remove();
+            // Re-enable recommendation card
+            const el = document.querySelector(`.rec-item[data-token="${token}"]`);
+            if (el) {
+              el.classList.remove('disabled');
+              el.setAttribute('draggable', 'true');
+            }
+            // Clear Summary tab date input for this token
+            const input = document.querySelector(`input[type="date"][data-token="${token}"]`);
+            if (input) input.value = '';
+            const bsModal = bootstrap.Modal.getInstance(modal);
+            bsModal?.hide();
+          };
+          const bsModal = new bootstrap.Modal(modal);
+          bsModal.show();
+        }
+      });
+      calendar.render();
+      calendarInited = true;
+      
+      // Add global mouse tracking for calendar event dragging
+      let calendarDragGhost = null;
+      let isCalendarDragging = false;
+      
+      // Listen for FullCalendar's internal drag events
+      document.addEventListener('mousemove', (e) => {
+        if (isCalendarDragging && calendarDragGhost) {
+          requestAnimationFrame(() => {
+            if (calendarDragGhost) {
+              calendarDragGhost.style.left = e.clientX + 'px';
+              calendarDragGhost.style.top = e.clientY + 'px';
+            }
+          });
+        }
+      });
+      
+      // Enhanced event drag start to create custom ghost with full filename
+      const originalEventDragStart = calendar.getOption('eventDragStart');
+      calendar.setOption('eventDragStart', (info) => {
+        isCalendarDragging = true;
+        
+        // Get the full original title (not the shortened version)
+        const fullTitle = info.event.title || 'Event';
+        
+        // Create custom ghost element with full filename
+        calendarDragGhost = document.createElement('div');
+        calendarDragGhost.className = 'drag-ghost';
+        calendarDragGhost.textContent = fullTitle;
+        calendarDragGhost.style.position = 'fixed';
+        calendarDragGhost.style.pointerEvents = 'none';
+        calendarDragGhost.style.zIndex = '10000';
+        calendarDragGhost.style.transform = 'translate(-50%, -50%)';
+        calendarDragGhost.style.maxWidth = '300px'; // Allow longer text
+        calendarDragGhost.style.whiteSpace = 'nowrap';
+        document.body.appendChild(calendarDragGhost);
+        
+        // Reduce opacity of original element to minimize visual conflict
+        info.el.style.opacity = '0.2';
+        
+        if (originalEventDragStart) originalEventDragStart(info);
+      });
+      
+      // Enhanced event drag stop to cleanup
+      const originalEventDragStop = calendar.getOption('eventDragStop');
+      calendar.setOption('eventDragStop', (info) => {
+        isCalendarDragging = false;
+        
+        // Remove custom ghost
+        if (calendarDragGhost) {
+          calendarDragGhost.remove();
+          calendarDragGhost = null;
+        }
+        
+        // Restore original element opacity
+        info.el.style.opacity = '1';
+        
+        if (originalEventDragStop) originalEventDragStop(info);
+      });
+      // attach download handler once calendar exists
+      const btn = document.getElementById('downloadCalBtn');
+      if (btn) {
+        btn.addEventListener('click', async () => {
+          // small delay to ensure rendering settled
+          await new Promise(r => setTimeout(r, 150));
+          const el = document.getElementById('calendar');
+          if (!el) return;
+          const canvas = await html2canvas(el, { backgroundColor: '#ffffff', scale: 2 });
+          canvas.toBlob((blob) => {
+            if (!blob) return;
+            const a = document.createElement('a');
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth()+1).padStart(2,'0');
+            const dd = String(now.getDate()).padStart(2,'0');
+            a.download = `calendar-${yyyy}${mm}${dd}.png`;
+            a.href = URL.createObjectURL(blob);
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(a.href);
+            a.remove();
+          });
+        });
+      }
+    }
+
+    document.addEventListener('shown.bs.tab', (ev) => {
+      const target = ev.target.getAttribute('data-bs-target');
+      if (target === '#tab-charts') initCharts();
+      if (target === '#tab-calendar') initCalendar();
+    });
+
+         // Enhanced drag functionality for recommendations
+     document.addEventListener('DOMContentLoaded', () => {
+       const list = document.querySelectorAll('#recList .rec-item');
+       let ghost = null;
+       let isDragging = false;
+       
+       function createGhost(title) {
+         if (ghost) removeGhost();
+         ghost = document.createElement('div');
+         ghost.className = 'drag-ghost';
+         ghost.textContent = title;
+         ghost.style.position = 'fixed';
+         ghost.style.pointerEvents = 'none';
+         ghost.style.zIndex = '10000';
+         ghost.style.transform = 'translate(-50%, -50%)'; // Center on cursor
+         document.body.appendChild(ghost);
+       }
+       
+       function removeGhost() { 
+         if (ghost) { 
+           ghost.remove(); 
+           ghost = null; 
+         }
+         isDragging = false;
+       }
+       
+       function updateGhostPosition(e) {
+         if (!ghost || !isDragging) return;
+         // Use requestAnimationFrame for smooth movement
+         requestAnimationFrame(() => {
+           if (ghost) {
+             ghost.style.left = e.clientX + 'px';
+             ghost.style.top = e.clientY + 'px';
+           }
+         });
+       }
+       
+       list.forEach(el => {
+         el.addEventListener('dragstart', (e) => {
+           isDragging = true;
+           const title = el.getAttribute('data-title') || el.textContent.trim();
+           createGhost(title);
+           
+           // Create invisible drag image
+           if (e.dataTransfer?.setDragImage) {
+             const canvas = document.createElement('canvas');
+             canvas.width = canvas.height = 1;
+             const ctx = canvas.getContext('2d');
+             ctx.globalAlpha = 0;
+             e.dataTransfer.setDragImage(canvas, 0, 0);
+           }
+           
+           // Set drag data
+           e.dataTransfer.setData('text/plain', el.getAttribute('data-token') || '');
+           e.dataTransfer.effectAllowed = 'move';
+         });
+         
+         el.addEventListener('dragend', removeGhost);
+       });
+       
+       // Global mouse move listener for smooth ghost tracking
+       document.addEventListener('dragover', (e) => {
+         e.preventDefault(); // Allow drop
+         updateGhostPosition(e);
+       });
+       
+       document.addEventListener('drop', removeGhost);
+       document.addEventListener('dragenter', (e) => e.preventDefault());
+       document.addEventListener('dragleave', (e) => {
+         // Only remove ghost if leaving the document entirely
+         if (!e.relatedTarget) {
+           removeGhost();
+         }
+       });
+     });
+
+    // History Tab Functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const historyTab = document.querySelector('[data-bs-target="#tab-history"]');
+      if (historyTab) {
+        historyTab.addEventListener('shown.bs.tab', function() {
+          loadComparisonHistory();
+        });
+      }
+      
+      // Also load history when page loads if history tab is active
+      if (document.querySelector('#tab-history.active')) {
+        loadComparisonHistory();
+      }
+    });
+
+    function loadComparisonHistory() {
+      const batchToken = '{{ batch_token }}';
+      
+      document.getElementById('history-loading').style.display = 'block';
+      document.getElementById('history-content').style.display = 'none';
+      
+      fetch(`/get-comparison-history/${batchToken}`)
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('history-loading').style.display = 'none';
+          document.getElementById('history-content').style.display = 'block';
+          
+          if (data.success && data.history && data.history.length > 0) {
+            displayComparisonHistory(data.history);
+            document.getElementById('no-history').style.display = 'none';
+          } else {
+            document.getElementById('no-history').style.display = 'block';
+          }
+        })
+        .catch(error => {
+          console.error('Error loading comparison history:', error);
+          document.getElementById('history-loading').style.display = 'none';
+          document.getElementById('no-history').style.display = 'block';
+        });
+    }
+
+    function displayComparisonHistory(history) {
+      const tbody = document.getElementById('history-tbody');
+      tbody.innerHTML = '';
+      
+      // Store history data for modal access
+      comparisonHistoryData = history;
+      
+      history.forEach(record => {
+        const row = document.createElement('tr');
+        
+        // Parse comparison summary
+        let summary = {};
+        try {
+          if (typeof record.comparison_summary === 'string') {
+            summary = JSON.parse(record.comparison_summary);
+          } else {
+            summary = record.comparison_summary || {};
+          }
+        } catch (e) {
+          console.error('Error parsing comparison summary:', e);
+          summary = { added: 0, modified: 0, deleted: 0, unchanged: 0 };
+        }
+        
+        // Parse comparison data to get detailed changes
+        let comparisonData = {};
+        let changesDetail = 'No details available';
+        try {
+          if (typeof record.comparison_data === 'string') {
+            comparisonData = JSON.parse(record.comparison_data);
+          } else {
+            comparisonData = record.comparison_data || {};
+          }
+          
+          if (comparisonData && comparisonData.changes) {
+            const changes = comparisonData.changes.filter(c => c.status !== 'unchanged');
+            if (changes.length > 0) {
+              changesDetail = changes.slice(0, 3).map(change => {
+                const status = change.status;
+                const fishName = change.fish_name || 'Unknown';
+                const details = change.changes || '';
+                
+                // Capitalize first letter of status
+                const statusCapitalized = status.charAt(0).toUpperCase() + status.slice(1);
+                
+                return `<div class="mb-1"><small><span class="badge badge-sm ${getStatusBadgeColor(status)}">${statusCapitalized}</span> <strong>${fishName}</strong></small><br/><small class="text-muted">${details}</small></div>`;
+              }).join('');
+              
+              if (changes.length > 3) {
+                changesDetail += `<div><small class="text-muted">... and ${changes.length - 3} more changes</small></div>`;
+              }
+            } else {
+              changesDetail = '<small class="text-muted">No changes detected</small>';
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing comparison data:', e, record.comparison_data);
+          changesDetail = '<small class="text-warning">Unable to parse data</small>';
+        }
+        
+        function getStatusBadgeColor(status) {
+          switch(status) {
+            case 'added': return 'bg-success';
+            case 'modified': return 'bg-warning';
+            case 'deleted': return 'bg-danger';
+            default: return 'bg-secondary';
+          }
+        }
+        
+        // Format date
+        const dateStr = record.bangkok_datetime || record.created_at;
+        
+        row.innerHTML = `
+          <td>
+            <div class="fw-medium text-break">${record.original_filename || 'Unknown'}</div>
+          </td>
+          <td>
+            <small class="text-muted text-nowrap">${dateStr}</small>
+          </td>
+          <td>
+            <div class="d-flex gap-1 flex-wrap">
+              ${summary.added > 0 ? `<span class="badge bg-success">${summary.added} Added</span>` : ''}
+              ${summary.modified > 0 ? `<span class="badge bg-warning">${summary.modified} Modified</span>` : ''}
+              ${summary.deleted > 0 ? `<span class="badge bg-danger">${summary.deleted} Deleted</span>` : ''}
+              ${summary.unchanged > 0 ? `<span class="badge bg-secondary">${summary.unchanged} Unchanged</span>` : ''}
+            </div>
+          </td>
+          <td>
+            <div class="text-truncate" style="max-width: 250px;" title="${changesDetail.replace(/<[^>]*>/g, '')}">${changesDetail}</div>
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline-info text-nowrap" onclick="viewComparisonDetails('${record.id}')">
+              <i class="bi bi-eye me-1"></i>View Details
+            </button>
+          </td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
+
+    function viewComparisonDetails(recordId) {
+      // Find the record data
+      const record = comparisonHistoryData.find(r => r.id == recordId);
+      if (!record) {
+        alert('Record not found');
+        return;
+      }
+      
+      // Parse comparison data
+      let comparisonData = {};
+      try {
+        if (typeof record.comparison_data === 'string') {
+          comparisonData = JSON.parse(record.comparison_data);
+        } else {
+          comparisonData = record.comparison_data || {};
+        }
+      } catch (e) {
+        alert('Unable to parse comparison data');
+        return;
+      }
+      
+      // Show modal with detailed comparison
+      showComparisonModal(record, comparisonData);
+    }
+
+    // Store comparison history data globally for modal access
+    let comparisonHistoryData = [];
+
+    function showComparisonModal(record, comparisonData) {
+      // Set modal header info
+      document.getElementById('modal-filename').textContent = record.original_filename || 'Unknown';
+      document.getElementById('modal-datetime').textContent = record.bangkok_datetime || record.created_at;
+      
+      // Populate modal table
+      const modalTbody = document.getElementById('modal-comparison-tbody');
+      modalTbody.innerHTML = '';
+      
+      if (comparisonData && comparisonData.changes) {
+        comparisonData.changes.forEach(change => {
+          const row = document.createElement('tr');
+          row.className = getRowClass(change.status);
+          row.dataset.status = change.status;
+          
+          row.innerHTML = `
+            <td>
+              <span class="badge ${getStatusBadgeClass(change.status)}">
+                ${getStatusIcon(change.status)} ${change.status}
+              </span>
+            </td>
+            <td>${change.fish_name || ''}</td>
+            <td>${change.packed_size || ''}</td>
+            <td>${change.old_quantity !== undefined && change.old_quantity !== null ? change.old_quantity : '-'}</td>
+            <td>${change.new_quantity !== undefined && change.new_quantity !== null ? change.new_quantity : '-'}</td>
+            <td>${change.changes || ''}</td>
+          `;
+          
+          modalTbody.appendChild(row);
+        });
+      }
+      
+      // Setup filter buttons for modal
+      setupModalFilterButtons();
+      
+      // Show the modal
+      const modal = new bootstrap.Modal(document.getElementById('comparisonModal'));
+      modal.show();
+    }
+
+    function setupModalFilterButtons() {
+      const filterButtons = document.querySelectorAll('#comparisonModal [data-filter]');
+      const tableRows = document.querySelectorAll('#modal-comparison-tbody tr');
+      
+      filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          // Update button states
+          filterButtons.forEach(btn => btn.classList.remove('active'));
+          this.classList.add('active');
+          
+          const filter = this.dataset.filter;
+          
+          // Filter table rows
+          tableRows.forEach(row => {
+            if (filter === 'all' || row.dataset.status === filter) {
+              row.style.display = '';
+            } else {
+              row.style.display = 'none';
+            }
+          });
+        });
+      });
+    }
+
+    function getRowClass(status) {
+      switch(status) {
+        case 'added': return 'table-success';
+        case 'modified': return 'table-warning';
+        case 'deleted': return 'table-danger';
+        default: return '';
+      }
+    }
+
+    function getStatusBadgeClass(status) {
+      switch(status) {
+        case 'added': return 'bg-success';
+        case 'modified': return 'bg-warning';
+        case 'deleted': return 'bg-danger';
+        case 'unchanged': return 'bg-secondary';
+        default: return 'bg-secondary';
+      }
+    }
+
+    function getStatusIcon(status) {
+      switch(status) {
+        case 'added': return '✓';
+        case 'modified': return '±';
+        case 'deleted': return '✗';
+        case 'unchanged': return '=';
+        default: return '';
+      }
+    }
+
+    // Editor Tab Functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const orderFileItems = document.querySelectorAll('.order-file-item');
+      const uploadSection = document.getElementById('upload-section');
+      const gettingStarted = document.getElementById('getting-started');
+      const comparisonResults = document.getElementById('comparison-results');
+      const selectedFilename = document.getElementById('selected-filename');
+      const originalToken = document.getElementById('original-token');
+      const originalFilenameInput = document.getElementById('original-filename');
+      const uploadForm = document.getElementById('comparison-upload-form');
+      const fileInput = document.getElementById('updated-file');
+      const compareBtn = document.getElementById('compare-btn');
+      const filenameValidation = document.getElementById('filename-validation');
+      const filenameErrorMessage = document.getElementById('filename-error-message');
+      const uploadSectionDiv = document.querySelector('.upload-section');
+
+      let selectedOrderFilename = '';
+
+      // Search functionality
+      const searchInput = document.getElementById('order-search');
+      const orderFileWrappers = document.querySelectorAll('.order-file-wrapper');
+      const noResults = document.getElementById('no-results');
+
+      if (searchInput && orderFileWrappers.length > 0) {
+        searchInput.addEventListener('input', function() {
+          const searchTerm = this.value.toLowerCase().trim();
+          let visibleCount = 0;
+
+          orderFileWrappers.forEach(wrapper => {
+            const filename = wrapper.dataset.filename.toLowerCase();
+            if (filename.includes(searchTerm)) {
+              wrapper.style.display = '';
+              visibleCount++;
+            } else {
+              wrapper.style.display = 'none';
+            }
+          });
+
+          if (noResults) {
+            noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+          }
+        });
+      }
+
+      // Filename validation function
+      function validateFilename(uploadedFilename) {
+        if (!selectedOrderFilename) return false;
+        
+        // Get base names without extensions for comparison
+        const getBaseName = (filename) => filename.replace(/\.[^/.]+$/, '');
+        const selectedBase = getBaseName(selectedOrderFilename).toLowerCase();
+        const uploadedBase = getBaseName(uploadedFilename).toLowerCase();
+        
+        return selectedBase === uploadedBase;
+      }
+
+      // Handle file input change
+      fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+          if (validateFilename(file.name)) {
+            // Valid filename
+            filenameValidation.style.display = 'none';
+            uploadSectionDiv.classList.remove('filename-mismatch');
+            compareBtn.disabled = false;
+          } else {
+            // Invalid filename
+            filenameErrorMessage.textContent = `File name "${file.name}" does not match selected order file "${selectedOrderFilename}". Please rename your file to match exactly.`;
+            filenameValidation.style.display = 'block';
+            uploadSectionDiv.classList.add('filename-mismatch');
+            compareBtn.disabled = true;
+          }
+        } else {
+          compareBtn.disabled = true;
+          filenameValidation.style.display = 'none';
+          uploadSectionDiv.classList.remove('filename-mismatch');
+        }
+      });
+
+      // Handle order file selection
+      orderFileItems.forEach(item => {
+        item.addEventListener('click', function() {
+          // Check if this item is already active
+          const isAlreadyActive = this.classList.contains('active');
+          
+          // Remove active state from all items
+          orderFileItems.forEach(i => i.classList.remove('active'));
+          
+          if (!isAlreadyActive) {
+            // Add active state to clicked item
+            this.classList.add('active');
+            
+            // Get data from clicked item
+            const token = this.dataset.token;
+            const filename = this.dataset.filename;
+            selectedOrderFilename = filename;
+            
+            // Update UI
+            selectedFilename.textContent = filename;
+            originalToken.value = token;
+            originalFilenameInput.value = filename;
+            
+            // Reset file input and validation
+            fileInput.value = '';
+            compareBtn.disabled = true;
+            filenameValidation.style.display = 'none';
+            uploadSectionDiv.classList.remove('filename-mismatch');
+            
+            // Show upload section, hide getting started and results
+            gettingStarted.style.display = 'none';
+            uploadSection.style.display = 'block';
+            comparisonResults.style.display = 'none';
+          } else {
+            // If clicking on already active item, deactivate it
+            selectedOrderFilename = '';
+            selectedFilename.textContent = '';
+            originalToken.value = '';
+            originalFilenameInput.value = '';
+            
+            // Hide upload section and results, show getting started
+            uploadSection.style.display = 'none';
+            comparisonResults.style.display = 'none';
+            gettingStarted.style.display = 'block';
+          }
+        });
+        
+        // Handle double click to deactivate
+        item.addEventListener('dblclick', function() {
+          // Remove active state from all items
+          orderFileItems.forEach(i => i.classList.remove('active'));
+          
+          // Reset all values
+          selectedOrderFilename = '';
+          selectedFilename.textContent = '';
+          originalToken.value = '';
+          originalFilenameInput.value = '';
+          
+          // Hide upload section and results, show getting started
+          uploadSection.style.display = 'none';
+          comparisonResults.style.display = 'none';
+          gettingStarted.style.display = 'block';
+        });
+      });
+
+      // Handle file upload and comparison
+      uploadForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const progressBar = document.querySelector('#upload-progress .progress-bar');
+        const uploadProgress = document.getElementById('upload-progress');
+        
+        // Show progress bar
+        uploadProgress.style.display = 'block';
+        progressBar.style.width = '0%';
+        
+        // Simulate upload progress
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+          progress += Math.random() * 30;
+          if (progress > 90) progress = 90;
+          progressBar.style.width = progress + '%';
+        }, 200);
+
+        // Submit form via fetch
+        fetch('/compare-order-files', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          clearInterval(progressInterval);
+          progressBar.style.width = '100%';
+          
+          setTimeout(() => {
+            uploadProgress.style.display = 'none';
+            if (data.success) {
+              displayComparisonResults(data.comparison);
+            } else {
+              alert('Error comparing files: ' + (data.error || 'Unknown error'));
+            }
+          }, 500);
+        })
+        .catch(error => {
+          clearInterval(progressInterval);
+          uploadProgress.style.display = 'none';
+          console.error('Error:', error);
+          alert('Error uploading file: ' + error.message);
+        });
+      });
+
+      // Display comparison results
+      function displayComparisonResults(comparison) {
+        comparisonResults.style.display = 'block';
+        
+        // Update summary counts
+        document.getElementById('added-count').textContent = comparison.summary.added;
+        document.getElementById('modified-count').textContent = comparison.summary.modified;
+        document.getElementById('deleted-count').textContent = comparison.summary.deleted;
+        document.getElementById('unchanged-count').textContent = comparison.summary.unchanged;
+        
+        // Populate comparison table
+        const tbody = document.getElementById('comparison-tbody');
+        tbody.innerHTML = '';
+        
+        comparison.changes.forEach(change => {
+          // Skip unchanged items in display (they're only counted in summary)
+          if (change.status === 'unchanged') return;
+          
+          const row = document.createElement('tr');
+          row.className = getRowClass(change.status);
+          row.dataset.status = change.status;
+          
+          row.innerHTML = `
+            <td>
+              <span class="badge ${getStatusBadgeClass(change.status)}">
+                ${getStatusIcon(change.status)} ${change.status}
+              </span>
+            </td>
+            <td>${change.fish_name || ''}</td>
+            <td>${change.packed_size || ''}</td>
+            <td>${change.old_quantity !== undefined ? change.old_quantity : '-'}</td>
+            <td>${change.new_quantity !== undefined ? change.new_quantity : '-'}</td>
+            <td>${change.changes || ''}</td>
+          `;
+          
+          tbody.appendChild(row);
+        });
+        
+        // Setup filter buttons
+        setupFilterButtons();
+        
+        // Setup apply changes button
+        setupApplyChangesButton(comparison);
+      }
+
+      // Setup apply changes button
+      function setupApplyChangesButton(comparison) {
+        const applyBtn = document.getElementById('apply-changes-btn');
+        if (applyBtn) {
+          applyBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to apply these changes to the original order file? This will update the current batch results.')) {
+              applyChangesToOriginalFile(comparison);
+            }
+          });
+        }
+      }
+
+      // Apply changes to original file
+      function applyChangesToOriginalFile(comparison) {
+        const applyBtn = document.getElementById('apply-changes-btn');
+        const originalText = applyBtn.innerHTML;
+        
+        // Show loading state
+        applyBtn.disabled = true;
+        applyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Applying...';
+        
+        // Prepare data for submission
+        const formData = new FormData();
+        formData.append('original_token', originalToken.value);
+        formData.append('batch_token', document.querySelector('input[name="batch_token"]').value);
+        formData.append('changes', JSON.stringify(comparison.changes));
+        
+        fetch('/apply-order-changes', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // Show success message
+            alert('Changes applied successfully! The page will refresh to show updated results.');
+            // Refresh the page to show updated results
+            window.location.reload();
+          } else {
+            alert('Error applying changes: ' + (data.error || 'Unknown error'));
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Error applying changes: ' + error.message);
+        })
+        .finally(() => {
+          // Reset button state
+          applyBtn.disabled = false;
+          applyBtn.innerHTML = originalText;
+        });
+      }
+
+      // Setup filter buttons
+      function setupFilterButtons() {
+        const filterButtons = document.querySelectorAll('#comparison-results .btn-group button');
+        const rows = document.querySelectorAll('#comparison-tbody tr');
+        
+        filterButtons.forEach(button => {
+          button.addEventListener('click', function() {
+            // Remove active state from all buttons
+            filterButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const filter = this.id.replace('show-', '').replace('-changes', '');
+            
+            rows.forEach(row => {
+              if (filter === 'all' || row.dataset.status === filter) {
+                row.style.display = '';
+              } else {
+                row.style.display = 'none';
+              }
+            });
+          });
+        });
+        
+        // Set "All" as default active
+        document.getElementById('show-all-changes').classList.add('active');
+      }
+
+      // Helper functions for styling
+      function getRowClass(status) {
+        switch(status) {
+          case 'added': return 'table-success';
+          case 'modified': return 'table-warning';
+          case 'deleted': return 'table-danger';
+          default: return '';
+        }
+      }
+
+      function getStatusBadgeClass(status) {
+        switch(status) {
+          case 'added': return 'bg-success';
+          case 'modified': return 'bg-warning';
+          case 'deleted': return 'bg-danger';
+          default: return 'bg-secondary';
+        }
+      }
+
+      function getStatusIcon(status) {
+        switch(status) {
+          case 'added': return '<i class="bi bi-plus-circle"></i>';
+          case 'modified': return '<i class="bi bi-pencil-circle"></i>';
+          case 'deleted': return '<i class="bi bi-dash-circle"></i>';
+          default: return '<i class="bi bi-circle"></i>';
+        }
+      }
+    });
+  </script>
+{% endblock %}
